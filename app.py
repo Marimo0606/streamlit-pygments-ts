@@ -203,13 +203,13 @@ def make_bbcode_from_segments(segments: List[Tuple[str, bool]], style_name: str 
             code = seg.strip("\n")
             highlighted_bb = highlight_python_bbcode(code, style_name)
             # 指定通り、黒色タグは削除して中身だけにする
-            highlighted_bb = remove_black_color_tags_bbcode(highlighted_bb)
+            highlighted_bb = "◆→開始:Pythonコード←◆\n" + remove_black_color_tags_bbcode(highlighted_bb) + "\n◆→終了:Pythonコード"
             parts.append(highlighted_bb)
         else:
             # 非コードはそのまま（末尾に改行が必要なら保持）
             parts.append(seg)
     # 適度に区切る（HTML 側と見た目を揃えるため改行で区切る）
-    return "\n\n".join(parts)
+    return "\n".join(parts)
 
 
 # 実行ボタン
