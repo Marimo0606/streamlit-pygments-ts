@@ -12,7 +12,7 @@ from pygments.styles import get_all_styles
 st.set_page_config(page_title="Pygments ハイライト (Streamlit)", layout="wide")
 
 # ヘッダ
-st.title("テキスト内の Python コードを Pygments でハイライトするツール")
+st.title("テキスト内のPythonコードをPygmentsでハイライト")
 st.markdown(
     "テキスト中のコードは次のデリミタで囲んでください：\n\n"
     "`◆→開始:Pythonコード←◆` と `◆→終了:Pythonコード←◆`"
@@ -23,7 +23,7 @@ col1, col2 = st.columns([3, 1])
 with col1:
     uploaded = st.file_uploader("テキストファイルをアップロード (省略可)", type=["txt"])
     text_input = st.text_area(
-        "またはここにテキストを貼り付けてください（アップロードが優先されます）",
+        "またはここにテキストを貼り付けてください（アップロードが優先されます）。「ハイライト実行」をクリックすると色を確認できます",
         height=300,
         placeholder="ここにテキストを貼り付け..."
     )
