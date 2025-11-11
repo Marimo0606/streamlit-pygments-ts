@@ -209,7 +209,7 @@ def make_bbcode_from_segments(segments: List[Tuple[str, bool]], style_name: str 
             # 非コードはそのまま（末尾に改行が必要なら保持）
             parts.append(seg)
     # 適度に区切る（HTML 側と見た目を揃えるため改行で区切る）
-    return "\n\n---\n\n".join(parts)
+    return "\n\n".join(parts)
 
 
 # 実行ボタン
