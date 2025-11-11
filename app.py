@@ -5,7 +5,7 @@ from typing import List, Tuple
 import streamlit as st
 from pygments import highlight
 from pygments.lexers import PythonLexer
-from pygments.formatters import HtmlFormatter
+from pygments.formatters import HtmlFormatter, BBCodeFormatter
 from pygments.styles import get_all_styles
 
 # Streamlit page config
@@ -42,6 +42,7 @@ with col2:
 
     st.markdown("出力")
     download_html = st.checkbox("ハイライト結果を HTML としてダウンロードする", value=True)
+    download_txt = st.checkbox("ハイライト結果を TXT（BBCode）でもダウンロードする", value=False)
     st.markdown("---")
     st.markdown("注意")
     st.caption(
@@ -105,7 +106,7 @@ def split_text_and_code(text: str) -> List[Tuple[str, bool]]:
     return parts
 
 
-def highlight_python(code: str, style_name: str = "friendly") -> str:
+def highlight_python_html(code: str, style_name: str = "friendly") -> str:
     """
     Python コードを Pygments でハイライトして HTML を返す（inline styles を使用）。
     style_name が存在しない等のエラーが起きた場合はフォールバックで 'default' を使い、
@@ -115,11 +116,34 @@ def highlight_python(code: str, style_name: str = "friendly") -> str:
     try:
         formatter = HtmlFormatter(noclasses=True, style=style_name)
     except Exception as e:
-        # スタイルが見つからない等の時のフォールバック
         fallback_msg = f"<!-- Pygments style '{style_name}' not available: {e}. Falling back to 'default'. -->\n"
         formatter = HtmlFormatter(noclasses=True, style="default")
         return fallback_msg + highlight(code, lexer, formatter)
     return highlight(code, lexer, formatter)
+
+
+def highlight_python_bbcode(code: str, style_name: str = "friendly") -> str:
+    """
+    Python コードを Pygments の BBCodeFormatter で出力（TXT 用）。
+    style_name が使えない場合は 'default' にフォールバック。
+    """
+    lexer = PythonLexer()
+    try:
+        formatter = BBCodeFormatter(style=style_name)
+    except Exception:
+        formatter = BBCodeFormatter(style="default")
+    return highlight(code, lexer, formatter)
+
+
+def remove_black_color_tags_bbcode(text: str) -> str:
+    """
+    BBCode 出力中の [color=#000000]...[/color] と [color=\"#000000\"]...[/color] を
+    見つけた場合のみタグを削除して中身だけ返す。
+    """
+    # 2 通りの表記に対応
+    text = re.sub(r'\[color=#000000\](.*?)\[/color\]', r'\1', text, flags=re.DOTALL)
+    text = re.sub(r'\[color="#000000"\](.*?)\[/color\]', r'\1', text, flags=re.DOTALL)
+    return text
 
 
 def make_html_from_segments(segments: List[Tuple[str, bool]], style_name: str = "friendly") -> str:
@@ -127,29 +151,65 @@ def make_html_from_segments(segments: List[Tuple[str, bool]], style_name: str = 
     セグメントのリスト（(text, is_code)）から最終 HTML を組み立てる。
     通常テキストは HTML エスケープして改行を <br> に変換する。
     コードは Pygments の HTML をそのまま埋め込む。
+    また、plain-text 部分は白背景 + 黒文字にして、ダークテーマ（システム依存）でも読めるようにしています。
     """
     html_parts: List[str] = []
     for seg, is_code in segments:
         if is_code:
-            # 先頭と末尾の不要な改行をトリムするが、ユーザの意図を保てるよう最低限にする
+            # 先頭と末尾の不要な改行をトリム
             code = seg.strip("\n")
-            highlighted = highlight_python(code, style_name)
-            # Pygments の HTML は <div> または <pre> を含むのでそのまま挿入
+            highlighted = highlight_python_html(code, style_name)
             html_parts.append(highlighted)
         else:
             if seg:
                 escaped = html.escape(seg)
-                # 改行を <br> に変換して HTML として挿入
                 escaped = escaped.replace("\n", "<br>\n")
-                # 段落をわかりやすくするためのラッパー
+                # 常に plain-text 部分は白背景・黒文字にする（コード部分は Pygments が白背景を付与している）
                 html_parts.append(f"<div class='plain-text'>{escaped}</div>")
-    # 全体を包む最小のスタイル
+    # 最小のスタイル（plain-text を白背景に固定）
+    style_block = """
+    <style>
+    .streamlit-pygments-output .plain-text {
+        background: #ffffff;
+        color: #000000;
+        padding: 10px;
+        border-radius: 6px;
+        white-space: pre-wrap;
+        margin: 8px 0;
+    }
+    /* Pygments の inline-style でコードは既に見た目がつくので追記は最小限 */
+    .streamlit-pygments-output pre { background: #ffffff !important; }
+    </style>
+    """
     full_html = (
-        "<div class='streamlit-pygments-output'>\n"
+        style_block
+        + "<div class='streamlit-pygments-output'>\n"
         + "\n<hr style='opacity:0.1'>\n".join(html_parts)
         + "\n</div>"
     )
     return full_html
+
+
+def make_bbcode_from_segments(segments: List[Tuple[str, bool]], style_name: str = "friendly") -> str:
+    """
+    セグメントを結合して TXT/BBCode 出力文字列を作成する。
+    - 通常テキストはそのまま（元のプレーンテキスト）
+    - コード部は BBCodeFormatter によるカラー化を適用
+    - BBCode の [color=#000000]...[/color] は中身だけ残してタグは削除
+    """
+    parts: List[str] = []
+    for seg, is_code in segments:
+        if is_code:
+            code = seg.strip("\n")
+            highlighted_bb = highlight_python_bbcode(code, style_name)
+            # 指定通り、黒色タグは削除して中身だけにする
+            highlighted_bb = remove_black_color_tags_bbcode(highlighted_bb)
+            parts.append(highlighted_bb)
+        else:
+            # 非コードはそのまま（末尾に改行が必要なら保持）
+            parts.append(seg)
+    # 適度に区切る（HTML 側と見た目を揃えるため改行で区切る）
+    return "\n\n---\n\n".join(parts)
 
 
 # 実行ボタン
@@ -164,14 +224,14 @@ if st.button("ハイライト実行"):
         else:
             result_html = make_html_from_segments(segments, style)
             # Streamlit に HTML を埋め込む（unsafe_allow_html 相当を使う）
-            # 安全のため高さをある程度確保し、スクロール可能にしておく
             st.components.v1.html(
                 f"<div>{result_html}</div>",
                 height=600,
                 scrolling=True,
             )
+
+            # HTML ダウンロード（オプション）
             if download_html:
-                # 単純な HTML ファイルとしてダウンロードさせる
                 html_file = (
                     "<!doctype html>\n"
                     "<html>\n<head>\n<meta charset='utf-8'>\n"
@@ -187,11 +247,22 @@ if st.button("ハイライト実行"):
                     mime="text/html",
                 )
 
+            # TXT (BBCode) ダウンロード（オプション）
+            if download_txt:
+                txt_file = make_bbcode_from_segments(segments, style)
+                st.download_button(
+                    label="結果を TXT (BBCode) としてダウンロード",
+                    data=txt_file.encode("utf-8"),
+                    file_name="highlighted_output.txt",
+                    mime="text/plain",
+                )
+
 # フッタの説明
 st.markdown("---")
 st.markdown(
     "仕組みの簡単な説明:\n\n"
     "1. テキストを正規表現で `◆→開始:Pythonコード←◆` / `◆→終了:Pythonコード←◆` のペアで分割します。\n"
-    "2. コード部分を Pygments (PythonLexer) で HTML に変換（inline style）します。\n"
+    "2. コード部分を Pygments (PythonLexer) で HTML または BBCode に変換します。\n"
     "3. 通常テキスト部分は HTML エスケープして改行を <br> に変換し、コード部分と組み合わせて表示します。\n"
+    "4. plain-text 部分は常に白背景／黒文字にして、ダークテーマでも読みやすくしています。\n"
 )
