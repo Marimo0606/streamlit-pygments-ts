@@ -21,7 +21,7 @@ st.markdown(
 # 入力方法
 col1, col2 = st.columns([3, 1])
 with col1:
-    uploaded = st.file_uploader("テキストファイルをアップロード (省略可)", type=["txt", "md"])
+    uploaded = st.file_uploader("テキストファイルをアップロード (省略可)", type=["txt"])
     text_input = st.text_area(
         "またはここにテキストを貼り付けてください（アップロードが優先されます）",
         height=300,
@@ -41,8 +41,8 @@ with col2:
     style = st.selectbox("Pygments スタイル", options=styles, index=default_index)
 
     st.markdown("出力")
-    download_html = st.checkbox("ハイライト結果を HTML としてダウンロードする", value=True)
-    download_txt = st.checkbox("ハイライト結果を TXT（BBCode）でもダウンロードする", value=False)
+    download_html = st.checkbox("ハイライト結果を HTML としてダウンロードする", value=False)
+    download_txt = st.checkbox("ハイライト結果を TXT（BBCode）でもダウンロードする", value=True)
     st.markdown("---")
     st.markdown("注意")
     st.caption(
