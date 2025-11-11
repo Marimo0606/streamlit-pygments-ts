@@ -1,0 +1,4 @@
+streamlit>=1.20.0
+pygments>=2.16.0
+# kmuto の Pygments スタイルを候補に入れるために GitHub 経由でインストール
+git+https://github.com/kmuto/pygments-style-texlistings.git@main#egg=pygments-style-texlistings
