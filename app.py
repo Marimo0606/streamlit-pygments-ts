@@ -74,7 +74,7 @@ if not raw:
             "◆→終了:Pythonコード←◆\n\n"
             "また普通の文章に戻ります。\n"
         )
-        st.experimental_rerun()
+        st.rerun()
 
 # 正規表現でコード領域を抽出する関数
 CODE_START = "◆→開始:Pythonコード←◆"
