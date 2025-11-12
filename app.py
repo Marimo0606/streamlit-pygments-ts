@@ -227,28 +227,32 @@ def make_html_from_segments(segments: List[Tuple[str, bool]], style_name: str = 
     # 最小のスタイル（plain-text を白背景に固定）
     style_block = """
 <style>
-.streamlit-pygments-output .plain-text {
-    background: #ffffff;
-    color: #000000;
-    padding: 6px;               /* 10px → 6px */
-    border-radius: 6px;
-    white-space: pre-wrap;
-    margin: 4px 0;              /* 8px → 4px */
+/* ラッパー自体の余白を極小化 */
+.streamlit-pygments-output{
+    margin: 0; padding: 0;
 }
-/* Pygments の出力をタイトに */
-.streamlit-pygments-output .highlight { margin: 0 !important; }
-.streamlit-pygments-output pre { 
-    background: #ffffff !important; 
-    margin: 4px 0 !important;   /* 余白を最小化 */
-    line-height: 1.5;           /* お好みで 1.45〜1.6 */
+
+/* プレーンテキストをタイトに */
+.streamlit-pygments-output .plain-text{
+    background:#fff; color:#000;
+    padding:6px;              /* 10px → 6px */
+    border-radius:6px;
+    white-space:pre-wrap;
+    margin:4px 0;             /* 8px → 4px */
+    line-height:1.5;
 }
-/* 区切り線の余白を小さく */
-.streamlit-pygments-output hr.seg {
-    opacity: 0.1;
-    margin: .5rem 0;            /* デフォルトよりかなり小さめ */
-    border: none;
-    border-top: 1px solid rgba(0,0,0,.08);
+
+/* Pygments 出力（div.highlight > pre）の余白を潰す */
+.streamlit-pygments-output .highlight{ margin:0 !important; }
+.streamlit-pygments-output .highlight pre{
+    margin:4px 0 !important;  /* デフォルトの大きな上下余白を削る */
+    background:#fff !important;
+    line-height:1.5;
 }
+
+/* 先頭・末尾だけ特に詰める */
+.streamlit-pygments-output > :first-child{ margin-top:0 !important; }
+.streamlit-pygments-output > :last-child{  margin-bottom:0 !important; }
 </style>
 """
 
