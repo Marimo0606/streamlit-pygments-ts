@@ -255,7 +255,7 @@ def make_html_from_segments(segments: List[Tuple[str, bool]], style_name: str = 
     full_html = (
         style_block
         + "<div class='streamlit-pygments-output'>\n"
-        + "\n<hr style='seg'>\n".join(html_parts)
+        + "\n".join(html_parts)
         + "\n</div>"
     )
     return full_html
