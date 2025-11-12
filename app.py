@@ -13,6 +13,37 @@ st.set_page_config(page_title="Pygments ハイライト (Streamlit)", layout="wi
 
 # ヘッダ
 st.title("テキスト内のPythonコードをPygmentsでハイライト")
+st.markdown("""
+<style>
+/* テキストエリアとボタンの間の余白を詰める */
+div[data-testid="stTextArea"] {
+    margin-bottom: 0.5rem !important;
+}
+
+/* ボタン全体の上下マージンを少し減らす */
+div[data-testid="stButton"] {
+    margin-top: 0.3rem !important;
+    margin-bottom: 0.5rem !important;
+}
+
+/* ボタン直下の余白を詰める */
+.stButton { margin-bottom: 0.5rem; }
+
+/* Markdown要素の上下余白を小さくする */
+.block-container p, .block-container h3, .block-container h2 {
+    margin-top: 0.2rem;
+    margin-bottom: 0.6rem;
+}
+
+/* ハイライト結果直前の余白を詰める */
+div[data-testid="stMarkdownContainer"] + div[data-testid="stVerticalBlock"] {
+    margin-top: 0 !important;
+    padding-top: 0 !important;
+}
+</style>
+""", unsafe_allow_html=True)
+
+
 st.markdown(
     """### サンプルテキスト（コピーして使えます）
 
