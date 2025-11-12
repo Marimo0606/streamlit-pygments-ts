@@ -8,68 +8,59 @@ from pygments.lexers import PythonLexer
 from pygments.formatters import HtmlFormatter, BBCodeFormatter
 from pygments.styles import get_all_styles
 
-# Streamlit page config
+# ------------------ ページ設定 ------------------
 st.set_page_config(page_title="Pygments ハイライト (Streamlit)", layout="wide")
 
+# ------------------ グローバルCSS（外側の余白を詰める） ------------------
 st.markdown("""
 <style>
-/* ============ 全体の縦リズム（ウィジェット間のギャップ） ============ */
+/* 全体の縦リズム（ウィジェット間のギャップ） */
 section.main > div.block-container div[data-testid="stVerticalBlock"]{
-  gap: .5rem !important;    /* もっと詰めたいなら .4rem や .35rem に */
+  gap: .5rem !important;              /* さらに詰めたい → .4rem や .35rem */
   padding-top: 0 !important;
 }
 
-/* ============ 入力エリア（TextArea） ============ */
+/* TextArea 周り（ボタン前のアキを詰める） */
 section.main div[data-testid^="stTextArea"]{
   margin-top: .25rem !important;
-  margin-bottom: .5rem !important;    /* ← ボタン前のアキを詰める本命 */
+  margin-bottom: .5rem !important;
 }
 section.main div[data-testid^="stTextArea"] textarea{
-  min-height: 12rem !important;       /* 10〜12rem 推奨／低すぎると常時スクロール */
+  min-height: 12rem !important;       /* 10〜12rem 推奨 */
   line-height: 1.6 !important;
 }
 section.main div[data-testid^="stTextArea"] textarea:placeholder-shown{
   overflow-y: hidden !important;       /* 未入力時は縦スクロール非表示 */
 }
 
-/* ============ ファイルアップローダ & ラベル ============ */
-section.main div[data-testid="stFileUploader"]{
-  margin-bottom: .5rem !important;
-}
-section.main div[data-testid="stWidgetLabel"]{
-  margin-bottom: .25rem !important;
-}
+/* ファイルアップローダ & ラベル */
+section.main div[data-testid="stFileUploader"]{ margin-bottom: .5rem !important; }
+section.main div[data-testid="stWidgetLabel"]{ margin-bottom: .25rem !important; }
 
-/* ============ ボタン周り ============ */
+/* ボタン上下の余白を抑える */
 section.main div[data-testid="stButton"]{
   margin-top: .25rem !important;
-  margin-bottom: .5rem !important;     /* ボタン直下も詰める */
+  margin-bottom: .5rem !important;
 }
 section.main .stButton > button{
   padding-top: .4rem !important;
   padding-bottom: .4rem !important;
 }
 
-/* ボタンの直後に来るブロック（結果表示など）の余白をさらに抑える */
+/* ボタン直後のブロック（結果表示など）の頭をさらに詰める */
 section.main div[data-testid="stButton"] + div[data-testid="stVerticalBlock"]{
   margin-top: 0 !important;
   padding-top: 0 !important;
 }
 
-/* ============ Markdown の余白（段落・見出し） ============ */
-section.main div[data-testid="stMarkdownContainer"] p{
-  margin-top: .2rem !important;
-  margin-bottom: .6rem !important;
-}
+/* Markdown 段落・見出しの余白をほどよくタイトに */
+section.main div[data-testid="stMarkdownContainer"] p{ margin: .2rem 0 .6rem 0 !important; }
 section.main .block-container h2, 
-section.main .block-container h3{
-  margin-top: .2rem !important;
-  margin-bottom: .6rem !important;
-}
+section.main .block-container h3{ margin: .2rem 0 .6rem 0 !important; }
 </style>
 """, unsafe_allow_html=True)
 
-# ヘッダ
+# ------------------ ヘッダ ------------------
 st.title("テキスト内のPythonコードをPygmentsでハイライト")
 st.markdown(
     """### サンプルテキスト（コピーして使えます）
@@ -81,10 +72,10 @@ st.markdown(
 
 ◆→開始:Pythonコード←◆
 def hello(name):
-    print(f"Hello, {name}!")
+print(f"Hello, {name}!")
 
 for i in range(3):
-    hello('world')
+hello('world')
 ◆→終了:Pythonコード←◆
 
 普通の文章に戻ります。
@@ -92,7 +83,7 @@ for i in range(3):
 """
 )
 
-# 入力方法
+# ------------------ 入力UI ------------------
 col1, col2 = st.columns([3, 1])
 with col1:
     uploaded = st.file_uploader("テキストファイルをアップロード (省略可)", type=["txt"])
@@ -103,14 +94,10 @@ with col1:
     )
 with col2:
     st.markdown("表示スタイル")
-    # 利用可能な Pygments スタイルを動的に取得してプルダウンにする
     try:
         styles = sorted(list(get_all_styles()))
     except Exception:
-        # まれに取得できない環境向けのフォールバック
         styles = ["friendly", "default", "monokai", "colorful", "autumn"]
-
-    # デフォルトを friendly に（存在しなければ先頭）
     default_index = styles.index("friendly") if "friendly" in styles else 0
     style = st.selectbox("Pygments スタイル", options=styles, index=default_index)
 
@@ -124,52 +111,33 @@ with col2:
         "requirements.txt にそのパッケージを追加してから Streamlit Community Cloud にデプロイしてください。"
     )
 
-# 優先的にアップロードされたファイルを使う
+# ------------------ 入力ソース決定 ------------------
 if uploaded is not None:
     try:
         raw = uploaded.read().decode("utf-8")
     except Exception:
-        # バイナリや別エンコーディングの可能性があるのでリトライ
         raw = uploaded.getvalue().decode("utf-8", errors="replace")
 else:
     raw = text_input or ""
 
-# 正規表現でコード領域を抽出する関数
+# ------------------ 解析のための定義 ------------------
 CODE_START = "◆→開始:Pythonコード←◆"
 CODE_END = "◆→終了:Pythonコード←◆"
-pattern = re.compile(
-    re.escape(CODE_START) + r"(.*?)" + re.escape(CODE_END),
-    re.DOTALL
-)
-
+pattern = re.compile(re.escape(CODE_START) + r"(.*?)" + re.escape(CODE_END), re.DOTALL)
 
 def split_text_and_code(text: str) -> List[Tuple[str, bool]]:
-    """
-    テキストを「コードである部分」と「コードでない部分」のリストに分割して返す。
-    戻り値は (segment, is_code) のタプルリスト。
-    """
     parts = []
     last_end = 0
     for m in pattern.finditer(text):
-        # 前の通常テキスト
         if m.start() > last_end:
             parts.append((text[last_end:m.start()], False))
-        # コード部分（マッチ内部）
-        code_inner = m.group(1)
-        parts.append((code_inner, True))
+        parts.append((m.group(1), True))
         last_end = m.end()
-    # 最後の残り
     if last_end < len(text):
         parts.append((text[last_end:], False))
     return parts
 
-
 def highlight_python_html(code: str, style_name: str = "friendly") -> str:
-    """
-    Python コードを Pygments でハイライトして HTML を返す（inline styles を使用）。
-    style_name が存在しない等のエラーが起きた場合はフォールバックで 'default' を使い、
-    エラーメッセージを HTML コメントとして付加する。
-    """
     lexer = PythonLexer()
     try:
         formatter = HtmlFormatter(noclasses=True, style=style_name)
@@ -179,12 +147,7 @@ def highlight_python_html(code: str, style_name: str = "friendly") -> str:
         return fallback_msg + highlight(code, lexer, formatter)
     return highlight(code, lexer, formatter)
 
-
 def highlight_python_bbcode(code: str, style_name: str = "friendly") -> str:
-    """
-    Python コードを Pygments の BBCodeFormatter で出力（TXT 用）。
-    style_name が使えない場合は 'default' にフォールバック。
-    """
     lexer = PythonLexer()
     try:
         formatter = BBCodeFormatter(style=style_name)
@@ -192,102 +155,65 @@ def highlight_python_bbcode(code: str, style_name: str = "friendly") -> str:
         formatter = BBCodeFormatter(style="default")
     return highlight(code, lexer, formatter)
 
-
 def remove_black_color_tags_bbcode(text: str) -> str:
-    """
-    BBCode 出力中の [color=#000000]...[/color] と [color=\"#000000\"]...[/color] を
-    見つけた場合のみタグを削除して中身だけ返す。
-    """
-    # 2 通りの表記に対応
     text = re.sub(r'\[color=#000000\](.*?)\[/color\]', r'\1', text, flags=re.DOTALL)
     text = re.sub(r'\[color="#000000"\](.*?)\[/color\]', r'\1', text, flags=re.DOTALL)
     return text
 
-
 def make_html_from_segments(segments: List[Tuple[str, bool]], style_name: str = "friendly") -> str:
-    """
-    セグメントのリスト（(text, is_code)）から最終 HTML を組み立てる。
-    通常テキストは HTML エスケープして改行を <br> に変換する。
-    コードは Pygments の HTML をそのまま埋め込む。
-    また、plain-text 部分は白背景 + 黒文字にして、ダークテーマ（システム依存）でも読めるようにしています。
-    """
     html_parts: List[str] = []
     for seg, is_code in segments:
         if is_code:
-            # 先頭と末尾の不要な改行をトリム
             code = seg.strip("\n")
-            highlighted = highlight_python_html(code, style_name)
-            html_parts.append(highlighted)
+            html_parts.append(highlight_python_html(code, style_name))
         else:
             if seg:
-                escaped = html.escape(seg)
-                escaped = escaped.replace("\n", "<br>\n")
-                # 常に plain-text 部分は白背景・黒文字にする（コード部分は Pygments が白背景を付与している）
+                escaped = html.escape(seg).replace("\n", "<br>\n")
                 html_parts.append(f"<div class='plain-text'>{escaped}</div>")
-    # 最小のスタイル（plain-text を白背景に固定）
+
+    # iframe内（結果側）の余白最小化CSS
     style_block = """
 <style>
-/* ラッパー自体の余白を極小化 */
-.streamlit-pygments-output{
-    margin: 0; padding: 0;
-}
-
-/* プレーンテキストをタイトに */
+.streamlit-pygments-output{ margin:0; padding:0; }
+/* プレーンテキスト */
 .streamlit-pygments-output .plain-text{
-    background:#fff; color:#000;
-    padding:6px;              /* 10px → 6px */
-    border-radius:6px;
-    white-space:pre-wrap;
-    margin:4px 0;             /* 8px → 4px */
-    line-height:1.5;
+    background:#fff; color:#000; padding:6px; border-radius:6px;
+    white-space:pre-wrap; margin:4px 0; line-height:1.5;
 }
-
-/* Pygments 出力（div.highlight > pre）の余白を潰す */
+/* Pygments 出力（div.highlight > pre） */
 .streamlit-pygments-output .highlight{ margin:0 !important; }
 .streamlit-pygments-output .highlight pre{
-    margin:4px 0 !important;  /* デフォルトの大きな上下余白を削る */
-    background:#fff !important;
-    line-height:1.5;
+    margin:4px 0 !important; background:#fff !important; line-height:1.5;
 }
-
-/* 先頭・末尾だけ特に詰める */
+/* 先頭・末尾の余白カット */
 .streamlit-pygments-output > :first-child{ margin-top:0 !important; }
 .streamlit-pygments-output > :last-child{  margin-bottom:0 !important; }
 </style>
 """
-
     full_html = (
         style_block
         + "<div class='streamlit-pygments-output'>\n"
-        + "\n".join(html_parts)
+        + "\n".join(html_parts)  # 区切り線(hr)は入れない
         + "\n</div>"
     )
     return full_html
 
-
 def make_bbcode_from_segments(segments: List[Tuple[str, bool]], style_name: str = "friendly") -> str:
-    """
-    セグメントを結合して TXT/BBCode 出力文字列を作成する。
-    - 通常テキストはそのまま（元のプレーンテキスト）
-    - コード部は BBCodeFormatter によるカラー化を適用
-    - BBCode の [color=#000000]...[/color] は中身だけ残してタグは削除
-    """
     parts: List[str] = []
     for seg, is_code in segments:
         if is_code:
             code = seg.strip("\n")
             highlighted_bb = highlight_python_bbcode(code, style_name)
-            # 指定通り、黒色タグは削除して中身だけにする
             highlighted_bb = "◆→開始:Pythonコード←◆\n" + remove_black_color_tags_bbcode(highlighted_bb) + "\n◆→終了:Pythonコード←◆"
             parts.append(highlighted_bb)
         else:
-            # 非コードはそのまま（末尾に改行が必要なら保持）
             parts.append(seg)
-    # 適度に区切る（HTML 側と見た目を揃えるため改行で区切る）
     return "\n".join(parts)
 
+# ------------------ 実行と出力 ------------------
+# ラッパーで囲ってこの領域だけ縦ギャップをさらに詰める
+st.markdown('<div class="tight">', unsafe_allow_html=True)
 
-# 実行ボタン
 if st.button("ハイライト実行"):
     if not raw:
         st.warning("まずテキストをアップロードするかコピー＆ペーストしてください。")
@@ -298,22 +224,13 @@ if st.button("ハイライト実行"):
             st.code(raw, language=None)
         else:
             result_html = make_html_from_segments(segments, style)
-            # Streamlit に HTML を埋め込む（unsafe_allow_html 相当を使う）
-            st.components.v1.html(
-                f"<div>{result_html}</div>",
-                height=600,
-                scrolling=True,
-            )
+            st.components.v1.html(f"<div>{result_html}</div>", height=600, scrolling=True)
 
-            # HTML ダウンロード（オプション）
             if download_html:
                 html_file = (
-                    "<!doctype html>\n"
-                    "<html>\n<head>\n<meta charset='utf-8'>\n"
-                    f"<title>Highlighted output</title>\n"
-                    "</head>\n<body>\n"
-                    f"{result_html}\n"
-                    "</body>\n</html>"
+                    "<!doctype html>\n<html>\n<head>\n<meta charset='utf-8'>\n"
+                    "<title>Highlighted output</title>\n</head>\n<body>\n"
+                    f"{result_html}\n</body>\n</html>"
                 )
                 st.download_button(
                     label="結果を HTML としてダウンロード",
@@ -322,7 +239,6 @@ if st.button("ハイライト実行"):
                     mime="text/html",
                 )
 
-            # TXT (BBCode) ダウンロード（オプション）
             if download_txt:
                 txt_file = make_bbcode_from_segments(segments, style)
                 st.download_button(
@@ -332,7 +248,22 @@ if st.button("ハイライト実行"):
                     mime="text/plain",
                 )
 
-# フッタの説明
+st.markdown('</div>', unsafe_allow_html=True)
+
+# この領域だけさらにタイトに（外側の最終上書き）
+st.markdown("""
+<style>
+.tight [data-testid="stVerticalBlock"]{ gap:.35rem !important; padding-top:0 !important; }
+.tight [data-testid="stButton"]{ margin-top:.2rem !important; margin-bottom:.35rem !important; }
+.tight [data-testid="stComponent"]{ margin-top:.2rem !important; margin-bottom:.4rem !important; }
+.tight [data-testid="stDownloadButton"]{ margin:.3rem 0 !important; }
+.tight [data-testid="stMarkdownContainer"] p, .tight h2, .tight h3{
+    margin-top:.2rem !important; margin-bottom:.5rem !important;
+}
+</style>
+""", unsafe_allow_html=True)
+
+# ------------------ フッタ ------------------
 st.markdown("---")
 st.markdown(
     "仕組みの簡単な説明:\n\n"
