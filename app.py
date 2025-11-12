@@ -42,6 +42,56 @@ div[data-testid="stMarkdownContainer"] + div[data-testid="stVerticalBlock"] {
 }
 </style>
 """, unsafe_allow_html=True)
+st.markdown("""
+<style>
+/* -------- 入力エリア（TextArea）のスクロール＆高さ調整 -------- */
+
+/* プレースホルダ表示中はスクロールバーを隠す（入力したら通常表示） */
+div[data-testid="stTextArea"] textarea:placeholder-shown {
+    overflow-y: hidden !important;
+}
+
+/* 通常時の見た目：最小高さを設定（必要量だけスクロール） */
+div[data-testid="stTextArea"] textarea {
+    min-height: 10rem !important;      /* お好みで 8~12rem に */
+    line-height: 1.6;
+}
+
+/* -------- ウィジェット間の縦の余白を詰める -------- */
+
+/* ラベルの下余白を小さく */
+div[data-testid="stWidgetLabel"] {
+    margin-bottom: 0.25rem !important;
+}
+
+/* ファイルアップローダーとテキストエリアの下余白を詰める */
+div[data-testid="stFileUploader"] {
+    margin-bottom: 0.5rem !important;
+}
+div[data-testid="stTextArea"] {
+    margin-top: 0.25rem !important;
+    margin-bottom: 0.5rem !important;
+}
+
+/* ボタンまわりの余白を詰める（前後どちらも） */
+div[data-testid="stButton"] {
+    margin-top: 0.3rem !important;
+    margin-bottom: 0.5rem !important;
+}
+
+/* セクション（縦ブロック）間のギャップを全体的に小さく */
+.block-container div[data-testid="stVerticalBlock"] {
+    gap: 0.5rem !important;            /* 既定はもっと広め。さらに詰めたいなら 0.4rem などに */
+    padding-top: 0 !important;
+}
+
+/* 文章系（p,h2,h3）の余白もややタイトに */
+.block-container p, .block-container h2, .block-container h3 {
+    margin-top: 0.2rem !important;
+    margin-bottom: 0.6rem !important;
+}
+</style>
+""", unsafe_allow_html=True)
 
 
 st.markdown(
