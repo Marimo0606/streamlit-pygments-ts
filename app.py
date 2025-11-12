@@ -21,28 +21,43 @@ st.markdown(
 # 入力方法
 col1, col2 = st.columns([3, 1])
 with col1:
-    uploaded = st.file_uploader("テキストファイルをアップロード (省略可)", type=["txt"])
+    uploaded = st.file_uploader("テキストファイルをアップロード (省略可)", type=["txt", "md"])
+    # text_area にキーを付けて session_state 経由で値を扱いやすくする
     text_input = st.text_area(
         "またはここにテキストを貼り付けてください（アップロードが優先されます）。「ハイライト実行」をクリックすると色を確認できます",
         height=300,
-        placeholder="ここにテキストを貼り付け..."
+        placeholder="ここにテキストを貼り付け...",
+        key="text_input",
     )
+
+    # サンプル読み込みボタン（ここで session_state にセットしてから下で raw を決定する）
+    if st.button("サンプルを読み込む"):
+        sample = (
+            "これはサンプルのテキストです。\n\n"
+            "普通の文章が続きます。\n\n"
+            "◆→開始:Pythonコード←◆\n"
+            "def hello(name):\n"
+            "    print(f\"Hello, {name}!\")\n\n"
+            "for i in range(3):\n"
+            "    hello('world')\n"
+            "◆→終了:Pythonコード←◆\n\n"
+            "また普通の文章に戻ります。\n"
+        )
+        # セッションに格納して、この実行フロー内で使えるようにする
+        st.session_state["sample_raw"] = sample
+
 with col2:
     st.markdown("表示スタイル")
-    # 利用可能な Pygments スタイルを動的に取得してプルダウンにする
     try:
         styles = sorted(list(get_all_styles()))
     except Exception:
-        # まれに取得できない環境向けのフォールバック
         styles = ["friendly", "default", "monokai", "colorful", "autumn"]
-
-    # デフォルトを friendly に（存在しなければ先頭）
     default_index = styles.index("friendly") if "friendly" in styles else 0
     style = st.selectbox("Pygments スタイル", options=styles, index=default_index)
 
     st.markdown("出力")
-    download_html = st.checkbox("ハイライト結果を HTML としてダウンロードする", value=False)
-    download_txt = st.checkbox("ハイライト結果を TXT（BBCode）でもダウンロードする", value=True)
+    download_html = st.checkbox("ハイライト結果を .html としてダウンロードする", value=False)
+    download_txt = st.checkbox("ハイライト結果を .txt（BBCode）でダウンロードする", value=True)
     st.markdown("---")
     st.markdown("注意")
     st.caption(
@@ -55,26 +70,10 @@ if uploaded is not None:
     try:
         raw = uploaded.read().decode("utf-8")
     except Exception:
-        # バイナリや別エンコーディングの可能性があるのでリトライ
         raw = uploaded.getvalue().decode("utf-8", errors="replace")
 else:
-    raw = text_input or ""
-
-# サンプルを表示するオプション
-if not raw:
-    if st.button("サンプルを読み込む"):
-        raw = (
-            "これはサンプルのテキストです。\n\n"
-            "普通の文章が続きます。\n\n"
-            "◆→開始:Pythonコード←◆\n"
-            "def hello(name):\n"
-            "    print(f\"Hello, {name}!\")\n\n"
-            "for i in range(3):\n"
-            "    hello('world')\n"
-            "◆→終了:Pythonコード←◆\n\n"
-            "また普通の文章に戻ります。\n"
-        )
-        st.rerun()
+    # まずサンプル（button が押された場合は session_state に入る）を優先、その次にテキストエリアを使う
+    raw = st.session_state.get("sample_raw") or st.session_state.get("text_input", "") or ""
 
 # 正規表現でコード領域を抽出する関数
 CODE_START = "◆→開始:Pythonコード←◆"
@@ -86,32 +85,20 @@ pattern = re.compile(
 
 
 def split_text_and_code(text: str) -> List[Tuple[str, bool]]:
-    """
-    テキストを「コードである部分」と「コードでない部分」のリストに分割して返す。
-    戻り値は (segment, is_code) のタプルリスト。
-    """
     parts = []
     last_end = 0
     for m in pattern.finditer(text):
-        # 前の通常テキスト
         if m.start() > last_end:
             parts.append((text[last_end:m.start()], False))
-        # コード部分（マッチ内部）
         code_inner = m.group(1)
         parts.append((code_inner, True))
         last_end = m.end()
-    # 最後の残り
     if last_end < len(text):
         parts.append((text[last_end:], False))
     return parts
 
 
 def highlight_python_html(code: str, style_name: str = "friendly") -> str:
-    """
-    Python コードを Pygments でハイライトして HTML を返す（inline styles を使用）。
-    style_name が存在しない等のエラーが起きた場合はフォールバックで 'default' を使い、
-    エラーメッセージを HTML コメントとして付加する。
-    """
     lexer = PythonLexer()
     try:
         formatter = HtmlFormatter(noclasses=True, style=style_name)
@@ -123,10 +110,6 @@ def highlight_python_html(code: str, style_name: str = "friendly") -> str:
 
 
 def highlight_python_bbcode(code: str, style_name: str = "friendly") -> str:
-    """
-    Python コードを Pygments の BBCodeFormatter で出力（TXT 用）。
-    style_name が使えない場合は 'default' にフォールバック。
-    """
     lexer = PythonLexer()
     try:
         formatter = BBCodeFormatter(style=style_name)
@@ -136,27 +119,16 @@ def highlight_python_bbcode(code: str, style_name: str = "friendly") -> str:
 
 
 def remove_black_color_tags_bbcode(text: str) -> str:
-    """
-    BBCode 出力中の [color=#000000]...[/color] と [color=\"#000000\"]...[/color] を
-    見つけた場合のみタグを削除して中身だけ返す。
-    """
-    # 2 通りの表記に対応
+    # [color=#000000]...[/color] と [color="#000000"]...[/color] を中身だけ残す
     text = re.sub(r'\[color=#000000\](.*?)\[/color\]', r'\1', text, flags=re.DOTALL)
     text = re.sub(r'\[color="#000000"\](.*?)\[/color\]', r'\1', text, flags=re.DOTALL)
     return text
 
 
 def make_html_from_segments(segments: List[Tuple[str, bool]], style_name: str = "friendly") -> str:
-    """
-    セグメントのリスト（(text, is_code)）から最終 HTML を組み立てる。
-    通常テキストは HTML エスケープして改行を <br> に変換する。
-    コードは Pygments の HTML をそのまま埋め込む。
-    また、plain-text 部分は白背景 + 黒文字にして、ダークテーマ（システム依存）でも読めるようにしています。
-    """
     html_parts: List[str] = []
     for seg, is_code in segments:
         if is_code:
-            # 先頭と末尾の不要な改行をトリム
             code = seg.strip("\n")
             highlighted = highlight_python_html(code, style_name)
             html_parts.append(highlighted)
@@ -164,9 +136,7 @@ def make_html_from_segments(segments: List[Tuple[str, bool]], style_name: str = 
             if seg:
                 escaped = html.escape(seg)
                 escaped = escaped.replace("\n", "<br>\n")
-                # 常に plain-text 部分は白背景・黒文字にする（コード部分は Pygments が白背景を付与している）
                 html_parts.append(f"<div class='plain-text'>{escaped}</div>")
-    # 最小のスタイル（plain-text を白背景に固定）
     style_block = """
     <style>
     .streamlit-pygments-output .plain-text {
@@ -177,7 +147,6 @@ def make_html_from_segments(segments: List[Tuple[str, bool]], style_name: str = 
         white-space: pre-wrap;
         margin: 8px 0;
     }
-    /* Pygments の inline-style でコードは既に見た目がつくので追記は最小限 */
     .streamlit-pygments-output pre { background: #ffffff !important; }
     </style>
     """
@@ -191,25 +160,16 @@ def make_html_from_segments(segments: List[Tuple[str, bool]], style_name: str = 
 
 
 def make_bbcode_from_segments(segments: List[Tuple[str, bool]], style_name: str = "friendly") -> str:
-    """
-    セグメントを結合して TXT/BBCode 出力文字列を作成する。
-    - 通常テキストはそのまま（元のプレーンテキスト）
-    - コード部は BBCodeFormatter によるカラー化を適用
-    - BBCode の [color=#000000]...[/color] は中身だけ残してタグは削除
-    """
     parts: List[str] = []
     for seg, is_code in segments:
         if is_code:
             code = seg.strip("\n")
-            highlighted_bb = highlight_python_bbcode(code, style_name)
-            # 指定通り、黒色タグは削除して中身だけにする
             highlighted_bb = "◆→開始:Pythonコード←◆\n" + remove_black_color_tags_bbcode(highlighted_bb) + "\n◆→終了:Pythonコード←◆"
+            highlighted_bb = remove_black_color_tags_bbcode(highlighted_bb)
             parts.append(highlighted_bb)
         else:
-            # 非コードはそのまま（末尾に改行が必要なら保持）
             parts.append(seg)
-    # 適度に区切る（HTML 側と見た目を揃えるため改行で区切る）
-    return "\n".join(parts)
+    return "\n\n---\n\n".join(parts)
 
 
 # 実行ボタン
@@ -223,14 +183,12 @@ if st.button("ハイライト実行"):
             st.code(raw, language=None)
         else:
             result_html = make_html_from_segments(segments, style)
-            # Streamlit に HTML を埋め込む（unsafe_allow_html 相当を使う）
             st.components.v1.html(
                 f"<div>{result_html}</div>",
                 height=600,
                 scrolling=True,
             )
 
-            # HTML ダウンロード（オプション）
             if download_html:
                 html_file = (
                     "<!doctype html>\n"
@@ -247,7 +205,6 @@ if st.button("ハイライト実行"):
                     mime="text/html",
                 )
 
-            # TXT (BBCode) ダウンロード（オプション）
             if download_txt:
                 txt_file = make_bbcode_from_segments(segments, style)
                 st.download_button(
