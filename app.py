@@ -226,23 +226,36 @@ def make_html_from_segments(segments: List[Tuple[str, bool]], style_name: str = 
                 html_parts.append(f"<div class='plain-text'>{escaped}</div>")
     # 最小のスタイル（plain-text を白背景に固定）
     style_block = """
-    <style>
-    .streamlit-pygments-output .plain-text {
-        background: #ffffff;
-        color: #000000;
-        padding: 10px;
-        border-radius: 6px;
-        white-space: pre-wrap;
-        margin: 8px 0;
-    }
-    /* Pygments の inline-style でコードは既に見た目がつくので追記は最小限 */
-    .streamlit-pygments-output pre { background: #ffffff !important; }
-    </style>
-    """
+<style>
+.streamlit-pygments-output .plain-text {
+    background: #ffffff;
+    color: #000000;
+    padding: 6px;               /* 10px → 6px */
+    border-radius: 6px;
+    white-space: pre-wrap;
+    margin: 4px 0;              /* 8px → 4px */
+}
+/* Pygments の出力をタイトに */
+.streamlit-pygments-output .highlight { margin: 0 !important; }
+.streamlit-pygments-output pre { 
+    background: #ffffff !important; 
+    margin: 4px 0 !important;   /* 余白を最小化 */
+    line-height: 1.5;           /* お好みで 1.45〜1.6 */
+}
+/* 区切り線の余白を小さく */
+.streamlit-pygments-output hr.seg {
+    opacity: 0.1;
+    margin: .5rem 0;            /* デフォルトよりかなり小さめ */
+    border: none;
+    border-top: 1px solid rgba(0,0,0,.08);
+}
+</style>
+"""
+
     full_html = (
         style_block
         + "<div class='streamlit-pygments-output'>\n"
-        + "\n<hr style='opacity:0.1'>\n".join(html_parts)
+        + "\n<hr style='seg'>\n".join(html_parts)
         + "\n</div>"
     )
     return full_html
