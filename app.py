@@ -11,89 +11,66 @@ from pygments.styles import get_all_styles
 # Streamlit page config
 st.set_page_config(page_title="Pygments ハイライト (Streamlit)", layout="wide")
 
+st.markdown("""
+<style>
+/* ============ 全体の縦リズム（ウィジェット間のギャップ） ============ */
+section.main > div.block-container div[data-testid="stVerticalBlock"]{
+  gap: .5rem !important;    /* もっと詰めたいなら .4rem や .35rem に */
+  padding-top: 0 !important;
+}
+
+/* ============ 入力エリア（TextArea） ============ */
+section.main div[data-testid^="stTextArea"]{
+  margin-top: .25rem !important;
+  margin-bottom: .5rem !important;    /* ← ボタン前のアキを詰める本命 */
+}
+section.main div[data-testid^="stTextArea"] textarea{
+  min-height: 12rem !important;       /* 10〜12rem 推奨／低すぎると常時スクロール */
+  line-height: 1.6 !important;
+}
+section.main div[data-testid^="stTextArea"] textarea:placeholder-shown{
+  overflow-y: hidden !important;       /* 未入力時は縦スクロール非表示 */
+}
+
+/* ============ ファイルアップローダ & ラベル ============ */
+section.main div[data-testid="stFileUploader"]{
+  margin-bottom: .5rem !important;
+}
+section.main div[data-testid="stWidgetLabel"]{
+  margin-bottom: .25rem !important;
+}
+
+/* ============ ボタン周り ============ */
+section.main div[data-testid="stButton"]{
+  margin-top: .25rem !important;
+  margin-bottom: .5rem !important;     /* ボタン直下も詰める */
+}
+section.main .stButton > button{
+  padding-top: .4rem !important;
+  padding-bottom: .4rem !important;
+}
+
+/* ボタンの直後に来るブロック（結果表示など）の余白をさらに抑える */
+section.main div[data-testid="stButton"] + div[data-testid="stVerticalBlock"]{
+  margin-top: 0 !important;
+  padding-top: 0 !important;
+}
+
+/* ============ Markdown の余白（段落・見出し） ============ */
+section.main div[data-testid="stMarkdownContainer"] p{
+  margin-top: .2rem !important;
+  margin-bottom: .6rem !important;
+}
+section.main .block-container h2, 
+section.main .block-container h3{
+  margin-top: .2rem !important;
+  margin-bottom: .6rem !important;
+}
+</style>
+""", unsafe_allow_html=True)
+
 # ヘッダ
 st.title("テキスト内のPythonコードをPygmentsでハイライト")
-st.markdown("""
-<style>
-/* テキストエリアとボタンの間の余白を詰める */
-div[data-testid="stTextArea"] {
-    margin-bottom: 0.5rem !important;
-}
-
-/* ボタン全体の上下マージンを少し減らす */
-div[data-testid="stButton"] {
-    margin-top: 0.3rem !important;
-    margin-bottom: 0.5rem !important;
-}
-
-/* ボタン直下の余白を詰める */
-.stButton { margin-bottom: 0.5rem; }
-
-/* Markdown要素の上下余白を小さくする */
-.block-container p, .block-container h3, .block-container h2 {
-    margin-top: 0.2rem;
-    margin-bottom: 0.6rem;
-}
-
-/* ハイライト結果直前の余白を詰める */
-div[data-testid="stMarkdownContainer"] + div[data-testid="stVerticalBlock"] {
-    margin-top: 0 !important;
-    padding-top: 0 !important;
-}
-</style>
-""", unsafe_allow_html=True)
-st.markdown("""
-<style>
-/* -------- 入力エリア（TextArea）のスクロール＆高さ調整 -------- */
-
-/* プレースホルダ表示中はスクロールバーを隠す（入力したら通常表示） */
-div[data-testid="stTextArea"] textarea:placeholder-shown {
-    overflow-y: hidden !important;
-}
-
-/* 通常時の見た目：最小高さを設定（必要量だけスクロール） */
-div[data-testid="stTextArea"] textarea {
-    min-height: 10rem !important;      /* お好みで 8~12rem に */
-    line-height: 1.6;
-}
-
-/* -------- ウィジェット間の縦の余白を詰める -------- */
-
-/* ラベルの下余白を小さく */
-div[data-testid="stWidgetLabel"] {
-    margin-bottom: 0.25rem !important;
-}
-
-/* ファイルアップローダーとテキストエリアの下余白を詰める */
-div[data-testid="stFileUploader"] {
-    margin-bottom: 0.5rem !important;
-}
-div[data-testid="stTextArea"] {
-    margin-top: 0.25rem !important;
-    margin-bottom: 0.5rem !important;
-}
-
-/* ボタンまわりの余白を詰める（前後どちらも） */
-div[data-testid="stButton"] {
-    margin-top: 0.3rem !important;
-    margin-bottom: 0.5rem !important;
-}
-
-/* セクション（縦ブロック）間のギャップを全体的に小さく */
-.block-container div[data-testid="stVerticalBlock"] {
-    gap: 0.5rem !important;            /* 既定はもっと広め。さらに詰めたいなら 0.4rem などに */
-    padding-top: 0 !important;
-}
-
-/* 文章系（p,h2,h3）の余白もややタイトに */
-.block-container p, .block-container h2, .block-container h3 {
-    margin-top: 0.2rem !important;
-    margin-bottom: 0.6rem !important;
-}
-</style>
-""", unsafe_allow_html=True)
-
-
 st.markdown(
     """### サンプルテキスト（コピーして使えます）
 
