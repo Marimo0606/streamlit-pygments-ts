@@ -224,7 +224,8 @@ if st.button("ハイライト実行"):
             st.code(raw, language=None)
         else:
             result_html = make_html_from_segments(segments, style)
-            st.components.v1.html(f"<div>{result_html}</div>", height=600, scrolling=True)
+            # st.components.v1.html(f"<div>{result_html}</div>", height=600, scrolling=True)
+            st.markdown(result_html, unsafe_allow_html=True)
 
             if download_html:
                 html_file = (
